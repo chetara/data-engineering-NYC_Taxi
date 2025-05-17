@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: k3str4
+      POSTGRES_DB: kestra
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - kestra-net
+
+  kestra:
+    image: kestra/kestra:latest
+    user: "root"
+    command: server standalone
+    volumes:
+      - kestra-data:/app/storage
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/kestra-wd:/tmp/kestra-wd
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://postgres:5432/kestra
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: k3str4
+        kestra:
+          repository:
+            type: postgres
+          storage:
+            type: local
+            local:
+              basePath: "/app/storage"
+          queue:
+            type: postgres
+          tasks:
+            tmpDir:
+              path: /tmp/kestra-wd/tmp
+          server:
+            basicAuth:
+              enabled: false
+          url: http://localhost:8080/
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      - postgres
+    networks:
+      - kestra-net
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - kestra-net
+
+volumes:
+  postgres-data:
+  kestra-data:
+
+networks:
+  kestra-net:
